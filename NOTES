@@ -1,0 +1,66 @@
+cd tests;
+pytest test_train_bpe.py;
+pytest test_tokenizer.py;
+
+================
+
+pytest test_train_bpe.py::test_train_bpe
+pytest test_train_bpe.py::test_train_bpe -s
+> this shows print statements we make.
+
+================
+
+read README.md --> shows how they want us to run the code
+info not given in pdf.
+oh also the command was given on page 9 of the pdf.
+
+================
+
+so what is this path:
+/home/brian/Desktop/assignment1-basics/tests/fixtures/corpus.en
+
+oh wait, that is a real file that comes with the git clone ...
+
+================
+
+https://github.com/ZitongYang/cs336-assignment1-basics
+https://github.com/ZitongYang/cs336-assignment2-systems
+https://github.com/ZitongYang/cs336-assignment3-scaling
+
+https://github.com/eljandoubi/LLM-From-Scratch/blob/main/cs336_basics/train_bpe_tokenizer.py
+
+================
+
+pytest tests/test_train_bpe.py::test_train_bpe_special_tokens -s -vv
+
+================
+
+so we mostly skipped over BPE and tokenization ... which maybe we should go back to.
+
+cs336_basics/__init__.py
+> delete the contents of this or else we have issues.
+
+pytest tests/test_model.py::test_linear
+pytest tests/test_model.py::test_embedding
+pytest tests/test_model.py::test_rmsnorm
+pytest tests/test_model.py::test_swiglu
+pytest tests/test_model.py::test_rope
+pytest tests/test_nn_utils.py::test_softmax_matches_pytorch
+pytest tests/test_model.py::test_scaled_dot_product_attention
+pytest tests/test_model.py::test_multihead_self_attention
+
+================
+
+we need to return to train bpe and tokenization
+so we learn the i/o of the model
+
+pytest tests/test_train_bpe.py::test_train_bpe
+
+
+
+
+
+
+
+
+

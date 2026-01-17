@@ -1,0 +1,80 @@
+
+import numpy as np
+from pretokenization_helper.py import find_chunk_boundaries
+
+#####################
+
+def merge(indices: list[int], pair: tuple[int, int], new_index: int) -> list[int]:
+    """Return `indices`, but with all instances of `pair` replaced with `new_index`."""
+    new_indices = []
+    i = 0
+    while i < len(indices):
+        if i + 1 < len(indices) and indices[i] == pair[0] and indices[i + 1] == pair[1]:
+            new_indices.append(new_index)
+            i += 2
+        else:
+            new_indices.append(indices[i])
+            i += 1
+    return new_indices
+
+#####################
+
+def train_bpe(input_path, vocab_size, special_tokens):
+  #print ()
+  #print (input_path)
+  #print (vocab_size)
+  #print (special_tokens)
+
+  #print ('Brian Crafton')
+  #assert False
+
+  f = open(input_path, 'r')
+  text = f.read()
+  f.close()
+  
+  text = text.encode('utf-8')
+  indices = list(map(int, text))
+  #print (text)
+
+  vocab = { x: bytes([x]) for x in range(256) }
+  merges = []
+
+  #################################
+
+  while len(vocab) + len(special_tokens) < vocab_size:
+
+    counts = {}
+    for index1, index2 in zip(indices, indices[1:]):
+      pair = (index1, index2)
+      if pair not in counts.keys():
+        counts[pair] = 0
+      counts[pair] += 1
+
+    pair = max(counts, key=counts.get)
+
+    #print (counts)
+    #print (counts[pair])
+
+    keys = list(counts.keys())
+    keys = [ (vocab[a], vocab[b]) for (a, b) in keys ]
+    values = list(counts.values())
+    order = np.argsort(values)[::-1]
+
+    '''
+    print ()
+    for i in order[0:5]:
+      print ( keys[i], values[i] )
+    assert False
+    '''
+
+    index1, index2 = pair
+    new_index = len(vocab)
+    vocab[new_index] = vocab[index1] + vocab[index2]
+    merges.append(( vocab[index1], vocab[index2] ))
+    indices = merge(indices, pair, new_index)
+
+  #################################
+
+  return vocab, merges
+
+
