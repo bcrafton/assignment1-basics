@@ -56,6 +56,11 @@ so we learn the i/o of the model
 
 pytest tests/test_train_bpe.py::test_train_bpe
 
+================
+
+so the new challenge is we have to merge all the indices
+but the indices are at the word level now
+so i guess we need to call it like 10 times?
 
 
 

@@ -6,17 +6,18 @@ from collections import defaultdict
 
 #####################
 
-def merge(text: list[bytes], pair: tuple[bytes, bytes], new_token: bytes) -> list[bytes]:
-    new_text = []
+def merge(indices: list[int], pair: tuple[int, int], new_index: int) -> list[int]:
+    """Return `indices`, but with all instances of `pair` replaced with `new_index`."""
+    new_indices = []
     i = 0
-    while i < len(text):
-        if i + 1 < len(text) and text[i] == pair[0] and text[i + 1] == pair[1]:
-            new_text.append(new_token)
+    while i < len(indices):
+        if i + 1 < len(indices) and indices[i] == pair[0] and indices[i + 1] == pair[1]:
+            new_indices.append(new_index)
             i += 2
         else:
-            new_text.append(text[i])
+            new_indices.append(indices[i])
             i += 1
-    return new_text
+    return new_indices
 
 #####################
 
@@ -28,8 +29,23 @@ def train_bpe(input_path, vocab_size, special_tokens):
   print (special_tokens)
 
   vocab = { x: bytes([x]) for x in range(256) }
-  vocab[256] = b'<|endoftext|>'
+  vocab['<|endoftext|>'] = 256
   merges = []
+
+  '''
+  f = open(input_path, 'r')
+  text = f.read()
+  f.close()
+
+  lut = {}
+  for match in PAT_REGEX.finditer(text):
+    word = match.group(0)
+    word = word.encode("utf-8")
+    indices = tuple(map(int, word))
+    if indices not in lut.keys():
+      lut[indices] = 0
+    lut[indices] += 1
+  '''
 
   num_processes = 4
   with open(input_path, "rb") as f:
@@ -43,42 +59,34 @@ def train_bpe(input_path, vocab_size, special_tokens):
       for match in PAT_REGEX.finditer(chunk):
         word = match.group(0)
         word = word.encode("utf-8")
-        word_bytes = tuple(bytes([x]) for x in word)
-        if word_bytes not in lut.keys():
-          lut[word_bytes] = 0
-        lut[word_bytes] += 1
+        indices = tuple(map(int, word))
+        if indices not in lut.keys():
+          lut[indices] = 0
+        lut[indices] += 1
 
   #################################
 
   while len(vocab) < vocab_size:
-    # print (len(vocab))
 
     counts = {}
-    for word_bytes in lut.keys():
-      for pair in zip(word_bytes, word_bytes[1:]):
+    for indices in lut.keys():
+      for pair in zip(indices, indices[1:]):
         if pair not in counts.keys():
           counts[pair] = 0
-        counts[pair] += lut[word_bytes]
-        #print (pair[0])
-        assert type(pair[0]) == bytes
-        assert type(pair[1]) == bytes
+        counts[pair] += lut[indices]
 
-    # The problem here is how we are breaking ties.
-    # I think our keys are integers and should be bytes
-    # With integer it is returning (b' c', b'om') before (b't', b'h') because b' c' --> over 256.
     (pair, merge_count) = max(counts.items(), key=lambda x: (x[1], x[0]))
+    index1, index2 = pair
     new_index = len(vocab)
-    assert type(pair[0]) == bytes
-    assert type(pair[1]) == bytes
-    vocab[new_index] = pair[0] + pair[1]
+    vocab[new_index] = vocab[index1] + vocab[index2]
 
-    merges.append( pair )
-    #print (len(merges), merges[-1], merge_count, pair, pair[0] + pair[1])
+    merges.append(tuple(vocab[x] for x in pair))
+    print (len(merges), merges[-1], merge_count)
 
     new_lut = {}
-    for (word_bytes, count) in lut.items():
-      word_bytes = merge(word_bytes, pair, pair[0] + pair[1])
-      new_lut[tuple(word_bytes)] = count
+    for (indices, count) in lut.items():
+      indices = merge(indices, pair, new_index)
+      new_lut[tuple(indices)] = count
     lut = new_lut
 
   #################################

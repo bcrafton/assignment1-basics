@@ -1,0 +1,64 @@
+#####################
+
+def merge(indices, pair, new_index):
+    new_indices = []
+    i = 0
+    while i < len(indices):
+        if i + 1 < len(indices) and indices[i] == pair[0] and indices[i + 1] == pair[1]:
+            new_indices.append(new_index)
+            i += 2
+        else:
+            new_indices.append(indices[i])
+            i += 1
+    return new_indices
+
+#####################
+
+text = '''
+low low low low low
+lower lower widest widest widest
+newest newest newest newest newest newest
+'''
+
+#####################
+
+# so the new problem is that we have to apply merge each time through on all text.
+# this is explained on page 8.
+
+lut = {}
+for word in text.split():
+  word = word.encode("utf-8")
+  word_bytes = tuple(bytes([x]) for x in word)
+  if word_bytes not in lut.keys(): lut[word_bytes] = 0
+  lut[word_bytes] += 1
+
+#print (lut)
+
+counts = {}
+for word in lut.keys():
+  indices = list(map(ord, word))
+  for pair in zip(indices, indices[1:]):
+    if pair not in counts.keys(): counts[pair] = 0
+    counts[pair] += lut[word]
+
+#print (counts)
+
+#pair = max(counts, key=counts.get)
+(pair, _) = max(counts.items(), key=lambda x: (x[1], x[0]))
+#print (pair)
+
+#####################
+
+vocab = { x: bytes([x]) for x in range(256) }
+
+index1, index2 = pair
+new_index = len(vocab)
+print (new_index, index1, index2)
+vocab[new_index] = vocab[index1] + vocab[index2]
+#merges.append(( vocab[index1], vocab[index2] ))
+
+print (indices)
+indices = merge(indices, pair, new_index)
+print (indices)
+
+#####################

@@ -1,7 +1,6 @@
 #####################
 
-def merge(indices: list[int], pair: tuple[int, int], new_index: int) -> list[int]:
-    """Return `indices`, but with all instances of `pair` replaced with `new_index`."""
+def merge(indices, pair, new_index):
     new_indices = []
     i = 0
     while i < len(indices):
@@ -21,22 +20,46 @@ lower lower widest widest widest
 newest newest newest newest newest newest
 '''
 
+vocab = { x: bytes([x]) for x in range(256) }
+vocab['<|endoftext|>'] = 256
+
+#####################
+
+# so the new problem is that we have to apply merge each time through on all text.
+# this is explained on page 8.
+
 lut = {}
 for word in text.split():
   word = word.encode("utf-8")
-  word_bytes = tuple(bytes([x]) for x in word)
-  if word_bytes not in lut.keys(): lut[word_bytes] = 0
-  lut[word_bytes] += 1
+  indices = tuple(map(int, word))
+  if indices not in lut.keys():
+    lut[indices] = 0
+  lut[indices] += 1
 
-#print (lut)
+#####################
 
-counts = {}
-for word in lut.keys():
-  for b1, b2 in zip(word, word[1:]):
-    if (b1, b2) not in counts.keys(): counts[(b1, b2)] = 0
-    counts[(b1, b2)] += lut[word]
+for step in range(12):
+  counts = {}
+  for indices in lut.keys():
+    for pair in zip(indices, indices[1:]):
+      if pair not in counts.keys():
+        counts[pair] = 0
+      counts[pair] += lut[indices]
 
-print (counts)
-#pair = max(counts, key=counts.get)
-pair = max(counts.items(), key=lambda x: (x[1], x[0]))
-print (pair)
+  (pair, _) = max(counts.items(), key=lambda x: (x[1], x[0]))
+  index1, index2 = pair
+  new_index = len(vocab)
+  vocab[new_index] = vocab[index1] + vocab[index2]
+
+  new_lut = {}
+  for (indices, count) in lut.items():
+    indices = merge(indices, pair, new_index)
+    new_lut[tuple(indices)] = count
+  lut = new_lut
+
+  print ( list(vocab[x] for x in pair) )
+
+  #####################
+
+
+

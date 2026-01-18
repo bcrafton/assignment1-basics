@@ -1,0 +1,77 @@
+
+import numpy as np
+from cs336_basics.pretokenization_helper import find_chunk_boundaries
+import regex as re
+from collections import defaultdict
+
+#####################
+
+def merge(indices: list[int], pair: tuple[int, int], new_index: int) -> list[int]:
+    """Return `indices`, but with all instances of `pair` replaced with `new_index`."""
+    new_indices = []
+    i = 0
+    while i < len(indices):
+        if i + 1 < len(indices) and indices[i] == pair[0] and indices[i + 1] == pair[1]:
+            new_indices.append(new_index)
+            i += 2
+        else:
+            new_indices.append(indices[i])
+            i += 1
+    return new_indices
+
+#####################
+
+# okay so the problem with our implementation is we did not do pre-tokenization
+
+PAT_REGEX = re.compile(r"'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+", re.UNICODE)
+def train_bpe(input_path, vocab_size, special_tokens):
+  print ()
+  print (special_tokens)
+
+  vocab = { x: bytes([x]) for x in range(256) }
+  vocab['<|endoftext|>'] = 256
+  merges = []
+
+  f = open(input_path, 'r')
+  text = f.read()
+  f.close()
+
+  lut = {}
+  for match in PAT_REGEX.finditer(text):
+    word = match.group(0)
+    word = word.encode("utf-8")
+    indices = tuple(map(int, word))
+    if indices not in lut.keys():
+      lut[indices] = 0
+    lut[indices] += 1
+
+  #################################
+
+  while len(vocab) < vocab_size:
+
+    counts = {}
+    for indices in lut.keys():
+      for pair in zip(indices, indices[1:]):
+        if pair not in counts.keys():
+          counts[pair] = 0
+        counts[pair] += lut[indices]
+
+    (pair, _) = max(counts.items(), key=lambda x: (x[1], x[0]))
+    index1, index2 = pair
+    new_index = len(vocab)
+    vocab[new_index] = vocab[index1] + vocab[index2]
+
+    new_lut = {}
+    for (indices, count) in lut.items():
+      indices = merge(indices, pair, new_index)
+      new_lut[tuple(indices)] = count
+    lut = new_lut
+
+    merges.append(tuple(vocab[x] for x in pair))
+    #print (merges[-1])
+
+  #################################
+
+  return vocab, merges
+
+
