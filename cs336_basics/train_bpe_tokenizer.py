@@ -25,28 +25,31 @@ def merge(text: list[bytes], pair: tuple[bytes, bytes], new_token: bytes) -> lis
 PAT_REGEX = re.compile(r"'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+", re.UNICODE)
 def train_bpe(input_path, vocab_size, special_tokens):
   print ()
-  print (special_tokens)
+  #print (special_tokens)
 
+  split_pattern = re.compile("|".join(re.escape(st) for st in special_tokens))
+  num_processes = 4
   vocab = { x: bytes([x]) for x in range(256) }
   vocab[256] = b'<|endoftext|>'
   merges = []
 
-  num_processes = 4
   with open(input_path, "rb") as f:
     boundaries = find_chunk_boundaries(f, num_processes, "<|endoftext|>".encode("utf-8"))
 
+    lut = {}
     for start, end in zip(boundaries[:-1], boundaries[1:]):
       f.seek(start)
       chunk = f.read(end - start).decode("utf-8", errors="ignore")
+      parts = split_pattern.split(chunk)
 
-      lut = {}
-      for match in PAT_REGEX.finditer(chunk):
-        word = match.group(0)
-        word = word.encode("utf-8")
-        word_bytes = tuple(bytes([x]) for x in word)
-        if word_bytes not in lut.keys():
-          lut[word_bytes] = 0
-        lut[word_bytes] += 1
+      for part in parts:
+        for match in PAT_REGEX.finditer(part):
+          word = match.group(0)
+          word = word.encode("utf-8")
+          word_bytes = tuple(bytes([x]) for x in word)
+          if word_bytes not in lut.keys():
+            lut[word_bytes] = 0
+          lut[word_bytes] += 1
 
   #################################
 
