@@ -21,7 +21,8 @@ def merge(text: list[bytes], pair: tuple[bytes, bytes], new_token: bytes) -> lis
 
 #####################
 
-def pretokenize(input_path, start, end, special_tokens, split_pattern):
+def pretokenize(args):
+  (input_path, start, end, special_tokens, split_pattern) = args
   lut = {}
   with open(input_path, "rb") as f:
     f.seek(start)
@@ -43,7 +44,7 @@ def pretokenize(input_path, start, end, special_tokens, split_pattern):
 # okay so the problem with our implementation is we did not do pre-tokenization
 
 PAT_REGEX = re.compile(r"'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+", re.UNICODE)
-def train_bpe(input_path, vocab_size, special_tokens):
+def train_bpe_parallel(input_path, vocab_size, special_tokens):
   print ()
   #print (special_tokens)
 
@@ -58,8 +59,21 @@ def train_bpe(input_path, vocab_size, special_tokens):
     boundaries = find_chunk_boundaries(f, num_processes, "<|endoftext|>".encode("utf-8"))
     print (boundaries)
 
+  '''
   for start, end in zip(boundaries[:-1], boundaries[1:]): # can parallelize here.
     _lut = pretokenize(input_path, start, end, special_tokens, split_pattern)
+    for key, value in _lut.items():
+      if key not in lut.keys(): lut[key] = 0
+      lut[key] += value
+  '''
+
+  jobs = []
+  for start, end in zip(boundaries[:-1], boundaries[1:]): # can parallelize here.
+    jobs.append((input_path, start, end, special_tokens, split_pattern))
+
+  pool = Pool(cpu_count())
+  _luts = pool.imap_unordered(pretokenize, jobs)
+  for _lut in _luts:
     for key, value in _lut.items():
       if key not in lut.keys(): lut[key] = 0
       lut[key] += value
