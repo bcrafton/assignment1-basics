@@ -64,6 +64,9 @@ so i guess we need to call it like 10 times?
 
 ================
 
+pytest tests/test_train_bpe.py::test_train_bpe_speed
+
+================
 
 
 
