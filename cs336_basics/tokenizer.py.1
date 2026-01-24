@@ -1,0 +1,49 @@
+
+from collections.abc import Iterable, Iterator
+
+def merge(text: list[bytes], pair: tuple[bytes, bytes], new_token: bytes) -> list[bytes]:
+    new_text = []
+    i = 0
+    while i < len(text):
+        if i + 1 < len(text) and text[i] == pair[0] and text[i + 1] == pair[1]:
+            new_text.append(new_token)
+            i += 2
+        else:
+            new_text.append(text[i])
+            i += 1
+    return new_text
+
+# the problem appears to be that we need to merge to integers.
+# so i think we should covert the bytes object to integers like the original
+
+class Tokenizer:
+  def __init__(self, vocab, merges, special_tokens=None):
+    self.vocab = vocab
+    self.reverse_vocab = { value: key for (key, value) in self.vocab.items() }
+    self.merges = merges
+    self.special_tokens = special_tokens
+
+  def from_files(cls, vocab_filepath, merges_filepath, special_tokens=None):
+    assert False
+
+  def encode(self, text: str) -> list[int]:
+    text = text.encode("utf-8")
+    for pair in self.merges:
+      text = merge(text, pair, pair[0] + pair[1])
+    print (text)
+    ids = []
+    for token in text:
+      ids.append(self.reverse_vocab[token])
+    return ids
+
+  def encode_iterable(self, iterable: Iterable[str]) -> Iterator[int]:
+    pass
+
+  def decode(self, ids: list[int]) -> str:
+    print ()
+    print (ids)
+    ret = ''
+    for id in ids:
+      ret += self.vocab[id]
+    return ret
+

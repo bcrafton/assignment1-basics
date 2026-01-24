@@ -68,7 +68,7 @@ pytest tests/test_train_bpe.py::test_train_bpe_speed
 
 ================
 
-
+pytest tests/test_tokenizer.py::test_roundtrip_single_character
 
 
 
