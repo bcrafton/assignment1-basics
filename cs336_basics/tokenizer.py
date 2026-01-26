@@ -68,19 +68,26 @@ class Tokenizer:
   '''
 
   def encode(self, text: str) -> list[int]:
-    print ()
 
-    '''
-    ids = []
-    for match in PAT_REGEX.finditer(text):
-      word = match.group(0)
+    # okay I think its obvious we need to go back and study this: "2.2 Unicode Encodings"
+    # and we probably also need to understand the 2 regex:
+    # 1- PAT_REGEX
+    # 2- re.compile("|".join(re.escape(st) for st in special_tokens))
+
+    # so the problem is it isnt splitting the bytes into a list
+    # but i dont think its the unicode smileys fault.
+
+    # yeah so i think we need to do this:
+    # word_bytes = tuple(bytes([x]) for x in word)
+
+    # check unicode_test.py
+
+    words = re.findall(PAT, text)
+    tokens = []
+    for word in words:
       word = word.encode("utf-8")
-      for pair in self.merges:
-        text = merge(text, pair, pair[0] + pair[1])
-    '''
+      tokens.extend(list(bytes([x]) for x in word))
 
-    tokens = re.findall(PAT, text)
-    tokens = [ token.encode("utf-8") for token in tokens ]
     for pair in self.merges:
       tokens = merge(tokens, pair, pair[0] + pair[1])
 
@@ -94,10 +101,10 @@ class Tokenizer:
     pass
 
   def decode(self, ids: list[int]) -> str:
-    ret = ''
+    ret = b''
     for id in ids:
-      ret += str( self.vocab[id].decode('utf-8') )
-    return ret
+      ret += self.vocab[id]
+    return str( ret.decode('utf-8') )
 
 
 
