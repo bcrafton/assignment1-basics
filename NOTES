@@ -72,3 +72,10 @@ pytest tests/test_tokenizer.py::test_roundtrip_single_character
 pytest tests/test_tokenizer.py::test_roundtrip_single_unicode_character
 
 pytest tests/test_tokenizer.py
+
+pytest tests/test_tokenizer.py::test_roundtrip_unicode_string_with_special_tokens
+
+
+
+
+

@@ -45,7 +45,16 @@ class Tokenizer:
     self.vocab = vocab
     self.reverse_vocab = { value: key for (key, value) in self.vocab.items() }
     self.merges = merges
-    self.special_tokens = special_tokens
+    if special_tokens:
+      self.special_tokens = special_tokens
+    else:
+      self.special_tokens = []
+    '''
+    if self.special_tokens:
+      self.split_pattern = re.compile("|".join(re.escape(st) for st in special_tokens))
+    else:
+      self.split_pattern = None
+    '''
 
   def from_files(cls, vocab_filepath, merges_filepath, special_tokens=None):
     assert False
@@ -68,6 +77,7 @@ class Tokenizer:
   '''
 
   def encode(self, text: str) -> list[int]:
+    print ()
 
     # okay I think its obvious we need to go back and study this: "2.2 Unicode Encodings"
     # and we probably also need to understand the 2 regex:
@@ -82,11 +92,31 @@ class Tokenizer:
 
     # check unicode_test.py
 
-    words = re.findall(PAT, text)
+    # this is the test:
+    # test_string = "Héllò hôw <|endoftext|><|endoftext|> are ü? 🙃<|endoftext|>"
+    # encoded_ids = tokenizer.encode(test_string)
+    # tokenized_string = [tokenizer.decode([x]) for x in encoded_ids]
+    # # Ensure the special <|endoftext|> token is preserved
+    # assert tokenized_string.count("<|endoftext|>") == 3
+
+    # so it actually wants us to preserve the special token
+
     tokens = []
-    for word in words:
-      word = word.encode("utf-8")
-      tokens.extend(list(bytes([x]) for x in word))
+
+    if self.special_tokens:
+      special_pattern = "(" + "|".join(re.escape(k) for k in self.special_tokens) + ")"
+      parts = re.split(special_pattern, text)
+    else:
+      parts = [text]
+
+    for part in parts:
+      if part in self.special_tokens:
+        tokens.append(part.encode("utf-8"))
+      else:
+        words = re.findall(PAT, part)
+        for word in words:
+          word = word.encode("utf-8")
+          tokens.extend(list(bytes([x]) for x in word))
 
     for pair in self.merges:
       tokens = merge(tokens, pair, pair[0] + pair[1])
@@ -104,8 +134,8 @@ class Tokenizer:
     ret = b''
     for id in ids:
       ret += self.vocab[id]
-    return str( ret.decode('utf-8') )
-
+    ret = str( ret.decode('utf-8', errors='replace') )
+    return ret
 
 
 
