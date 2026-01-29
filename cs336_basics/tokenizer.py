@@ -46,7 +46,7 @@ class Tokenizer:
     self.reverse_vocab = { value: key for (key, value) in self.vocab.items() }
     self.merges = merges
     if special_tokens:
-      self.special_tokens = special_tokens
+      self.special_tokens = sorted(special_tokens, key=len, reverse=True) # to pass test_overlapping_special_tokens
     else:
       self.special_tokens = []
     '''
@@ -97,9 +97,13 @@ class Tokenizer:
     # encoded_ids = tokenizer.encode(test_string)
     # tokenized_string = [tokenizer.decode([x]) for x in encoded_ids]
     # # Ensure the special <|endoftext|> token is preserved
-    # assert tokenized_string.count("<|endoftext|>") == 3
+    # assert tokenized_string.count("<|endoftext|>") == 1
 
     # so it actually wants us to preserve the special token
+
+    # wow so new test is this:
+    # test_string = "Hello, how <|endoftext|><|endoftext|> are you?<|endoftext|>"
+    # and it wants us to treat the 2 special tokens separately.
 
     tokens = []
 
