@@ -77,5 +77,8 @@ pytest tests/test_tokenizer.py::test_roundtrip_unicode_string_with_special_token
 
 pytest tests/test_tokenizer.py::test_overlapping_special_tokens
 
-
+pytest tests/test_tokenizer.py::test_tinystories_matches_tiktoken
+> dont do this one
+pytest tests/test_tokenizer.py::test_encode_special_token_double_newline_non_whitespace -vv
+> do this one instead, I think the problem is the double white space
 
