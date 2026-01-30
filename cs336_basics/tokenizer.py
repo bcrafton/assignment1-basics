@@ -80,7 +80,7 @@ class Tokenizer:
   '''
 
   def encode(self, text: str) -> list[int]:
-    print ()
+    # print ()
 
     # okay I think its obvious we need to go back and study this: "2.2 Unicode Encodings"
     # and we probably also need to understand the 2 regex:
@@ -130,8 +130,14 @@ class Tokenizer:
 
     return ids
 
-  def encode_iterable(self, iterable: Iterable[str]) -> Iterator[int]:
-    pass
+  def encode_iterable(self, texts: Iterable[str]) -> Iterable[List[int]]:
+      """
+      Encode the texts into a list of token ids.
+      """
+      for text in texts:
+          ids = self.encode(text)
+          for id in ids:
+              yield id
 
   def decode(self, ids: list[int]) -> str:
     ret = b''
