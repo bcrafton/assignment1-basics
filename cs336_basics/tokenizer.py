@@ -1,6 +1,8 @@
 
 import regex as re
 from collections.abc import Iterable, Iterator
+from typing import Dict, Tuple, Iterable, List
+from tqdm import tqdm
 
 def merge(text: list[bytes], pair: tuple[bytes, bytes], new_token: bytes) -> list[bytes]:
     new_text = []
@@ -39,6 +41,7 @@ def merge(indices: list[int], pair: tuple[int, int], new_index: int) -> list[int
 
 PAT_REGEX = re.compile(r"'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+", re.UNICODE)
 PAT = r"'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"
+GPT2_PRETOKENIZER_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
 class Tokenizer:
   def __init__(self, vocab, merges, special_tokens=None):
@@ -105,29 +108,25 @@ class Tokenizer:
     # test_string = "Hello, how <|endoftext|><|endoftext|> are you?<|endoftext|>"
     # and it wants us to treat the 2 special tokens separately.
 
-    tokens = []
-
     if self.special_tokens:
       special_pattern = "(" + "|".join(re.escape(k) for k in self.special_tokens) + ")"
       parts = re.split(special_pattern, text)
     else:
       parts = [text]
 
+    ids = []
     for part in parts:
       if part in self.special_tokens:
-        tokens.append(part.encode("utf-8"))
+        ids.append(self.reverse_vocab[part.encode("utf-8")])
       else:
-        words = re.findall(PAT, part)
+        words = re.findall(GPT2_PRETOKENIZER_PATTERN, part)
         for word in words:
-          word = word.encode("utf-8")
-          tokens.extend(list(bytes([x]) for x in word))
-
-    for pair in self.merges:
-      tokens = merge(tokens, pair, pair[0] + pair[1])
-
-    ids = []
-    for token in tokens:
-      ids.append(self.reverse_vocab[token])
+          tokens = []      
+          tokens.extend(list(bytes([x]) for x in word.encode("utf-8")))
+          for pair in self.merges:
+            tokens = merge(tokens, pair, pair[0] + pair[1])
+          for token in tokens:
+            ids.append(self.reverse_vocab[token])
 
     return ids
 

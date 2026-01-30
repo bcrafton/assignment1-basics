@@ -82,3 +82,26 @@ pytest tests/test_tokenizer.py::test_tinystories_matches_tiktoken
 pytest tests/test_tokenizer.py::test_encode_special_token_double_newline_non_whitespace -vv
 > do this one instead, I think the problem is the double white space
 
+so the issue is that we dont have the double white space which is interesting.
+is it whitespace.
+id = 198
+
+ord = unicode --> int
+chr = int --> unicode
+
+okay this really dosnt make sense now.
+id 628 = '\n\n'
+id 198 = '\n'
+the mismatch is we have (1) 628 and the reference has (2) 198
+
+so the vocab we are given defines double newline 
+and we are simply merging it ... so why does it not want 198 merged?
+
+we can try printing out what the solutions does.
+> yeah this is working
+
+=====================
+
+
+
+
