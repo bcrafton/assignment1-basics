@@ -104,9 +104,9 @@ we can try printing out what the solutions does.
 
 pytest tests/test_tokenizer.py::test_encode_iterable_tinystories_sample_roundtrip
 
+=====================
 
-
-
+pytest tests/test_model.py::test_linear
 
 
 

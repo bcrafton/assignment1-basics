@@ -11,7 +11,7 @@ from torch import Tensor
 
 from cs336_basics.train_bpe_tokenizer import *
 from cs336_basics.tokenizer import Tokenizer
-#from cs336_basics import model
+from cs336_basics import model
 
 def run_linear(
     d_in: int,
@@ -34,6 +34,30 @@ def run_linear(
 
     #raise NotImplementedError
     linear = model.Linear(d_in, d_out)
+
+    # the pdf says:
+    # To test your Linear module, implement the test adapter at [adapters.run_linear]. The adapter should load the given weights into your Linear module. You can use Module.load_state_dict for this purpose.
+
+    # in test_model.py we see:
+    # w1_weight = ts_state_dict[0]["layers.0.ffn.w1.weight"]
+    # but I am not sure how exactly to put this weight into our model
+
+    # wants a dict, not tensor
+    # linear.load_state_dict(weights)
+
+    # oh, but if you look below in run_swiglu we see an example.
+    # linear.load_state_dict({"weight": weight})
+
+    # how do we get the name of the layer though for the dict?
+
+    # for name, module in linear.named_modules():
+    #   print (name, module)
+
+    # I give up, it dosnt seem important now.
+
+    # print ()
+    # print (linear)
+
     linear.weight.data = weights
     return linear(in_features)
 
@@ -58,7 +82,7 @@ def run_embedding(
     """
 
     #raise NotImplementedError
-    embedding = model.Embedding(vocab_size=vocab_size, d_model=d_model)
+    embedding = model.Embedding(num_embeddings=vocab_size, embedding_dim=d_model)
     embedding.weight.data = weights
     return embedding(token_ids)
 
