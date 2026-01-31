@@ -71,7 +71,20 @@ class Embedding(Module):
     def forward(self, token_ids):
       return self.weight[token_ids]
 
+class RMSNorm(Module):
+    def __init__(self, d_model, eps, device=None, dtype=None):
+      super().__init__()
+      self.d_model = d_model
+      self.eps = eps
+      self.weight = torch.empty(d_model)
+      std = 1 / sqrt(self.d_model)
+      self.weight = torch.nn.init.trunc_normal_(self.weight, mean=0.0, std=std, a=-3*std, b=3*std)
+      self.weight = Parameter(self.weight)
 
+    def forward(self, x):
+      assert x.shape[-1] == self.d_model
+      RMS = torch.sqrt( self.eps + (1. / self.d_model) * torch.sum(torch.square(x), axis=-1, keepdims=True))
+      return x * self.weight / RMS
 
 
 
