@@ -112,13 +112,19 @@ def run_swiglu(
     # Example:
     # If your state dict keys match, you can use `load_state_dict()`
     # swiglu.load_state_dict(weights)
+
     # You can also manually assign the weights
     # swiglu.w1.weight.data = w1_weight
     # swiglu.w2.weight.data = w2_weight
     # swiglu.w3.weight.data = w3_weight
-    #raise NotImplementedError
+
     swiglu = model.SwiGLU(d_model, d_ff)
-    swiglu.load_state_dict({f"w{i}.weight": w for i, w in enumerate([w1_weight, w2_weight, w3_weight], start=1)})
+
+    #swiglu.load_state_dict({f"w{i}.weight": w for i, w in enumerate([w1_weight, w2_weight, w3_weight], start=1)})
+
+    swiglu.w1.data = w1_weight
+    swiglu.w2.data = w2_weight
+    swiglu.w3.data = w3_weight
     return swiglu(in_features)
 
 
@@ -249,7 +255,7 @@ def run_rope(
         Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input.
     """
     #raise NotImplementedError
-    rope = model.RotaryPositionalEmbedding(d_k, theta, max_seq_len)
+    rope = model.RotaryPositionalEmbedding(d_k=d_k, theta=theta, max_seq_len=max_seq_len)
     return rope(in_query_or_key, token_positions)
 
 
@@ -444,8 +450,8 @@ def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
         Float[Tensor,"..."]: of with the same shape as `in_features` with the output of applying
         SiLU to each element.
     """
-    raise NotImplementedError
-
+    # raise NotImplementedError
+    return model.SiLU(in_features)
 
 def run_get_batch(
     dataset: npt.NDArray, batch_size: int, context_length: int, device: str
