@@ -128,23 +128,31 @@ class RotaryPositionalEmbedding(Module):
       
       # I am pretty sure token_positions is for optimization
       # But I think we can simply do R * x
-      
+
+      '''
       cos = torch.cos(torch.Tensor([self.theta]))
       sin = torch.sin(torch.Tensor([self.theta])) 
       R = torch.concat((cos, -sin, sin, cos)).reshape(2, 2)
-
-      # oh our problem is obvious 
-      # we arnt doing theta right.
-      # its supposed to be a function of i and k.
-
-      power = -2 * torch.arange(self.d_k // 2, dtype=torch.float32) / self.d_k
-      inv_freq = self.theta ** power
-      angles = positions * inv_freq
-
       Z = torch.zeros((x.shape[-1], x.shape[-1]))
       for z in range(0, x.shape[-1], 2):
         Z[ z:z+2 , z:z+2 ] = R
       OUT = einsum(x, Z, "... d_model, XXX d_model -> ... XXX")
+      '''
+
+      # oh our problem is obvious 
+      # we arnt doing theta right.
+      # its supposed to be a function of i and k.
+      # so i appears to be a function of the sequence length ... which we would not be implementing correctly.
+
+      Z = torch.zeros((self.max_seq_len, self.d_k, self.d_k))
+      for i in range(0, self.max_seq_len):
+        for k in range(0, self.d_k, 2):
+          theta = i / self.theta ** (k / self.d_k)
+          Z[i, k+0, k+0] = torch.cos(torch.Tensor([theta]))
+          Z[i, k+0, k+1] = -torch.sin(torch.Tensor([theta]))
+          Z[i, k+1, k+0] = torch.sin(torch.Tensor([theta]))
+          Z[i, k+1, k+1] = torch.cos(torch.Tensor([theta]))
+      OUT = torch.sum(Z * x.reshape(4, 12, 1, 64), axis=3)
       return OUT
 
 
