@@ -155,5 +155,81 @@ class RotaryPositionalEmbedding(Module):
       OUT = torch.sum(Z * x.reshape(4, 12, 1, 64), axis=3)
       return OUT
 
+def scaled_dot_product_attention(
+    Q: Float[Tensor, " ... queries d_k"],
+    K: Float[Tensor, " ... keys d_k"],
+    V: Float[Tensor, " ... values d_v"],
+    mask: Float[Tensor, " ... queries keys"] | None = None,
+) -> Float[Tensor, " ... queries d_v"]:
+    """
+    Given key (K), query (Q), and value (V) tensors, return
+    the output of scaled dot product attention.
+
+    Args:
+        Q (Float[Tensor, " ... queries d_k"]): Query tensor
+        K (Float[Tensor, " ... keys d_k"]): Key tensor
+        V (Float[Tensor, " ... keys d_v"]): Values tensor
+        mask (Float[Tensor, " ... queries keys"] | None): Mask tensor
+    Returns:
+        Float[Tensor, " ... queries d_v"]: Output of SDPA
+    """
+
+    d_k = Q.shape[-1]
+    # why is it QTK?
+    QTK = einsum(Q, K, "... queries d_k, ... keys d_k -> ... queries keys") / sqrt(d_k)
+    QTK[~mask] = -torch.inf
+    QTK = torch.softmax(QTK, axis=-1)
+    OUT = einsum(QTK, V, "... queries keys, ... keys d_k -> ... queries d_k")
+    return OUT
+
+class MultiheadAttention(Module):
+    """MultiheadAttention"""
+
+    def __init__(
+        self,
+        d_model: int,
+        num_heads: int,
+    ):
+        """
+        Args:
+            d_model (int): Dimensionality of the feedforward input and output.
+            num_heads (int): Number of heads to use in multi-headed attention.
+        """
+        super().__init__()
+        self.d_model = d_model
+        self.num_heads = num_heads
+        # So the reason why num_heads isnt used in Q,K,V size is because we divide model by num_heads
+        # - Linear Layers (Q, K, V): Three projections (Query, Key, Value) each with (d_{model} * d_{model}) parameters.
+        # - Heads (h): Dividing (d_{model}) into (h) heads (where (d_{k}=d_{model}h)) does not change the total parameters.
+        self.q_proj = Linear(d_model, d_model)
+        self.k_proj = Linear(d_model, d_model)
+        self.v_proj = Linear(d_model, d_model)
+        self.output_proj = Linear(d_model, d_model)
+
+    def forward(self, x: Float[Tensor, " ... sequence_length d_model"]):
+        """
+        Args:
+            in_features (Float[Tensor, "... sequence_length d_model"]): Tensor to run your implementation on.
+
+        Returns:
+            Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of batched multi-headed attention.
+        """
+        q = self.q_proj(x)
+        k = self.k_proj(x)
+        v = self.v_proj(x)
+        #print (q.shape)
+        #print (k.shape)
+        #print (v.shape)
+        batch, seq, _ = q.shape
+        q = q.reshape(batch, self.num_heads, seq, self.d_model // self.num_heads)
+        k = k.reshape(batch, self.num_heads, seq, self.d_model // self.num_heads)
+        v = v.reshape(batch, self.num_heads, seq, self.d_model // self.num_heads)
+        mask = torch.ones((seq, seq), dtype=int)
+        mask = torch.triu(mask)
+        #print (mask)
+        out = scaled_dot_product_attention(q, k, v, mask)
+        out = self.output_proj(out)
+        return out
+
 
 
