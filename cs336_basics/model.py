@@ -118,9 +118,9 @@ class RotaryPositionalEmbedding(Module):
       self.max_seq_len = max_seq_len
 
     def forward(self, x: torch.Tensor, token_positions: torch.Tensor):
-      print ()
-      print (self.theta, self.d_k, self.max_seq_len)
-      print (x.shape, token_positions.shape)
+      # print ()
+      # print (self.theta, self.d_k, self.max_seq_len)
+      # print (x.shape, token_positions.shape)
 
       # x.shape --> [4, 12, 64]
       # You should assume that the token positions are a tensor of shape (..., seq_len) specifying the token positions of x along the sequence dimension.
@@ -144,15 +144,17 @@ class RotaryPositionalEmbedding(Module):
       # its supposed to be a function of i and k.
       # so i appears to be a function of the sequence length ... which we would not be implementing correctly.
 
-      Z = torch.zeros((self.max_seq_len, self.d_k, self.d_k))
-      for i in range(0, self.max_seq_len):
+      seq_len = x.shape[-2]
+      Z = torch.zeros((seq_len, self.d_k, self.d_k))
+      for i in range(0, seq_len):
         for k in range(0, self.d_k, 2):
           theta = i / self.theta ** (k / self.d_k)
           Z[i, k+0, k+0] = torch.cos(torch.Tensor([theta]))
           Z[i, k+0, k+1] = -torch.sin(torch.Tensor([theta]))
           Z[i, k+1, k+0] = torch.sin(torch.Tensor([theta]))
           Z[i, k+1, k+1] = torch.cos(torch.Tensor([theta]))
-      OUT = torch.sum(Z * x.reshape(4, 12, 1, 64), axis=3)
+      shape = list(x.shape[0:-1]) + [1] + [x.shape[-1]]
+      OUT = torch.sum(Z * x.reshape(shape), axis=-1)
       return OUT
 
 def scaled_dot_product_attention(
@@ -246,4 +248,58 @@ class MultiheadAttention(Module):
 
         return out
 
+class RoPEMultiheadAttention(Module):
+    """RotaryPositionalEmbedding MultiheadAttention"""
+
+    def __init__(
+        self,
+        d_model: int,
+        num_heads: int,
+        theta: float,
+        max_seq_len: int,
+    ):
+        """
+        Args:
+            d_model (int): Dimensionality of the feedforward input and output.
+            num_heads (int): Number of heads to use in multi-headed attention.
+            theta (float): RoPE parameter.
+            max_seq_len (int): Maximum sequence length to pre-cache.
+        """
+        super().__init__()
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.d_k = d_model // num_heads
+        self.q_proj = Linear(d_model, d_model)
+        self.k_proj = Linear(d_model, d_model)
+        self.v_proj = Linear(d_model, d_model)
+        self.output_proj = Linear(d_model, d_model)
+        self.rope = RotaryPositionalEmbedding(d_k=self.d_k, theta=theta, max_seq_len=max_seq_len)
+
+    def forward(
+        self,
+        x: Float[Tensor, " ... sequence_length d_model"],
+        token_positions: Int[Tensor, " ... sequence_length"],
+    ) -> Float[Tensor, " ... sequence_length d_model"]:
+
+        q = self.q_proj(x)
+        k = self.k_proj(x)
+        v = self.v_proj(x)
+
+        batch, seq, _ = q.shape
+        q = q.reshape(batch, seq, self.num_heads, self.d_model // self.num_heads).transpose(2,1)
+        # TODO: what is the point of passing token positions?
+        q = self.rope(q, token_positions)
+        k = k.reshape(batch, seq, self.num_heads, self.d_model // self.num_heads).transpose(2,1)
+        # TODO: what is the point of passing token positions?
+        k = self.rope(k, token_positions)
+        v = v.reshape(batch, seq, self.num_heads, self.d_model // self.num_heads).transpose(2,1)
+
+        mask = torch.ones((batch, self.num_heads, seq, seq), dtype=bool)
+        mask.tril_()
+
+        out = scaled_dot_product_attention(q, k, v, mask)
+        out = out.transpose(2,1).reshape(batch, seq, self.d_model)
+        out = self.output_proj(out)
+
+        return out
 
