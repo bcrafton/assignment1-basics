@@ -340,4 +340,23 @@ class TransformerDecoderLayer(Module):
         res2 = self.ffn(self.ln2(res1)) + res1
         return res2
 
+class TransformerDecoder(Module):
+    def __init__(
+        self,
+        vocab_size: int,
+        context_length: int,
+        d_model: int,
+        num_layers: int,
+        num_heads: int,
+        d_ff: int,
+        rope_theta: float,
+    ):
+        super().__init__()
+        pass
+
+    def forward(self, in_indices: Int[Tensor, " batch_size sequence_length"],) -> Float[Tensor, " batch_size sequence_length vocab_size"]:
+        pass
+
+
+
 

@@ -122,9 +122,13 @@ def run_swiglu(
 
     #swiglu.load_state_dict({f"w{i}.weight": w for i, w in enumerate([w1_weight, w2_weight, w3_weight], start=1)})
 
-    swiglu.w1.data = w1_weight
-    swiglu.w2.data = w2_weight
-    swiglu.w3.data = w3_weight
+    # swiglu.w1.data = w1_weight
+    # swiglu.w2.data = w2_weight
+    # swiglu.w3.data = w3_weight
+    
+    swiglu.w1.weight.data = w1_weight
+    swiglu.w2.weight.data = w2_weight
+    swiglu.w3.weight.data = w3_weight
     return swiglu(in_features)
 
 

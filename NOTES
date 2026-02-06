@@ -116,7 +116,7 @@ pytest tests/test_model.py::test_multihead_self_attention_with_rope
 TODO: 
 1. fix rope
 2. figure out what token_positions is passed to rope
-
+3. fix our hacky code. better understand the shapes.
 
 
 
