@@ -108,7 +108,7 @@ pytest tests/test_tokenizer.py::test_encode_iterable_tinystories_sample_roundtri
 
 pytest tests/test_model.py::test_linear
 pytest tests/test_model.py::test_rope
-
+pytest tests/test_model.py::test_multihead_self_attention
 
 
 

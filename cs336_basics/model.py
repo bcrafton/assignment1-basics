@@ -220,16 +220,30 @@ class MultiheadAttention(Module):
         #print (q.shape)
         #print (k.shape)
         #print (v.shape)
-        batch, seq, _ = q.shape
-        q = q.reshape(batch, self.num_heads, seq, self.d_model // self.num_heads)
-        k = k.reshape(batch, self.num_heads, seq, self.d_model // self.num_heads)
-        v = v.reshape(batch, self.num_heads, seq, self.d_model // self.num_heads)
-        mask = torch.ones((seq, seq), dtype=int)
-        mask = torch.triu(mask)
-        #print (mask)
-        out = scaled_dot_product_attention(q, k, v, mask)
-        out = self.output_proj(out)
-        return out
 
+        batch, seq, _ = q.shape
+        q = q.reshape(batch, seq, self.num_heads, self.d_model // self.num_heads).transpose(2,1)
+        k = k.reshape(batch, seq, self.num_heads, self.d_model // self.num_heads).transpose(2,1)
+        v = v.reshape(batch, seq, self.num_heads, self.d_model // self.num_heads).transpose(2,1)
+
+        # I still dont get how this shape works.
+        # QTK[~mask] = -torch.inf
+        # - but QTK and mask dimensions dont match ... so what is going on there?
+
+        mask = torch.ones((batch, self.num_heads, seq, seq), dtype=bool)
+        mask.tril_()
+
+        # print ()
+        # print (q.shape)
+        # print (k.shape)
+        # print (v.shape)
+        # print (mask.shape)
+        # mask = torch.triu(mask)
+
+        out = scaled_dot_product_attention(q, k, v, mask)
+        out = out.transpose(2,1).reshape(batch, seq, self.d_model)
+        out = self.output_proj(out)
+
+        return out
 
 
