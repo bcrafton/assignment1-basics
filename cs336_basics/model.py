@@ -72,7 +72,7 @@ class Embedding(Module):
       return self.weight[token_ids]
 
 class RMSNorm(Module):
-    def __init__(self, d_model, eps, device=None, dtype=None):
+    def __init__(self, d_model, eps=1e-5, device=None, dtype=None):
       super().__init__()
       self.d_model = d_model
       self.eps = eps
@@ -89,6 +89,7 @@ class RMSNorm(Module):
 def SiLU(x):
   return x * torch.sigmoid(x)
 
+'''
 class SwiGLU(Module):
     def __init__(self, d_model, d_ff, device=None, dtype=None):
       super().__init__()
@@ -108,6 +109,23 @@ class SwiGLU(Module):
       W3X = einsum(x, self.w3, "... d_model, d_ff d_model -> ... d_ff")
       hidden = SiLU(W1X) * W3X
       OUT = einsum(hidden, self.w2, "... d_ff, d_model d_ff -> ... d_model")
+      return OUT
+'''
+
+class SwiGLU(Module):
+    def __init__(self, d_model, d_ff, device=None, dtype=None):
+      super().__init__()
+      self.d_model = d_model
+      self.d_ff = d_ff
+      self.w1 = Linear(self.d_ff, self.d_model)
+      self.w2 = Linear(self.d_model, self.d_ff)
+      self.w3 = Linear(self.d_ff, self.d_model)
+
+    def forward(self, x):
+      W1X = self.w1(x)
+      W3X = self.w3(x)
+      hidden = SiLU(W1X) * W3X
+      OUT = self.w2(hidden)
       return OUT
 
 class RotaryPositionalEmbedding(Module):
@@ -302,4 +320,24 @@ class RoPEMultiheadAttention(Module):
         out = self.output_proj(out)
 
         return out
+
+class TransformerDecoderLayer(Module):
+    """TransformerDecoderLayer with RoPE"""
+
+    def __init__(self, d_model: int, num_heads: int, d_ff: int, max_seq_len: int, theta: float):
+        super().__init__()
+        self.attn = RoPEMultiheadAttention(d_model, num_heads, theta, max_seq_len)
+        self.ffn = SwiGLU(d_model, d_ff)
+        self.ln1 = RMSNorm(d_model)
+        self.ln2 = RMSNorm(d_model)
+
+    def forward(
+        self,
+        x: Float[Tensor, " batch sequence_length d_model"],
+        pos_ids: Int[Tensor, " ... sequence_length"] | None = None,
+    ):
+        res1 = self.attn(self.ln1(x), pos_ids) + x
+        res2 = self.ffn(self.ln2(res1)) + res1
+        return res2
+
 
