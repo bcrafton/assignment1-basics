@@ -352,11 +352,27 @@ class TransformerDecoder(Module):
         rope_theta: float,
     ):
         super().__init__()
-        pass
+        self.vocab_size = vocab_size
+        self.context_length = context_length
+        self.d_model = d_model
+        self.num_layers = num_layers
+        self.num_heads = num_heads
+        self.d_ff = d_ff
+        self.rope_theta = rope_theta
+
+        self.token_embeddings = Embedding(num_embeddings=vocab_size, embedding_dim=d_model)
+        self.layers = ModuleList([ TransformerDecoderLayer(d_model=d_model, num_heads=num_heads, d_ff=d_ff, max_seq_len=context_length, theta=rope_theta) for _ in range(num_layers) ])
+        self.ln_final = RMSNorm(d_model)
+        self.lm_head = Linear(vocab_size, d_model)
 
     def forward(self, in_indices: Int[Tensor, " batch_size sequence_length"],) -> Float[Tensor, " batch_size sequence_length vocab_size"]:
-        pass
-
+        x = self.token_embeddings(in_indices)
+        for layer in self.layers:
+          x = layer(x)
+        x = self.ln_final(x)
+        x = self.lm_head(x)
+        # return torch.softmax(x, axis=-1)
+        return x
 
 
 
