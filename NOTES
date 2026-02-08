@@ -117,11 +117,37 @@ TODO:
 1. fix rope
 2. figure out what token_positions is passed to rope
 3. fix our hacky code. better understand the shapes.
+4. i dont even understand some of the inputs and outputs of each layer. like [batch, heads, seq, dmodel] but how many flops?
 
+pytest tests/test_model.py::test_transformer_lm
 
+how to do flop accounting?
+> add count_flops(self) to each model?
+> i dont know that swiglu was used in GPT-2.
+> and we should assume a batch size of (1)?
 
+=====================
 
+so we can do this somewhat elegantly 
+if we have a count_flops function
+that is a copy of forward()
+but then also returns a dictionary containing the flops
 
+for names we can have each layer return: 'linear'
+and the layer above can append attn.linear, then 0.attn.linear
+and eventually we can build the right name without assigning any names.
+
+it will break several of our layers though.
+because we do stuff like: ln(ffn(x))
+
+what if we count the number of flops during forward
+then just use that number during count flops?
+yeah I think that works best.
+
+yeah so it really just is the number of parameters * the number of tokens for flops.
+operational internsity is so low.
+
+=====================
 
 
 

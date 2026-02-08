@@ -5,7 +5,7 @@ from torch import Tensor
 from torch.nn import Module, Parameter, ModuleList
 from numpy import sqrt
 from einops import einsum, rearrange
-#from cs336_basics.nn_utils import softmax
+import numpy as np
 
 '''
 def Linear(torch.nn.Module):
@@ -56,7 +56,11 @@ class Linear(Module):
       # return einsum(in_features, self.weight, "... d_in, d_out d_in -> ... d_out")
       # return in_features @ self.weight.T
       # print (in_features.shape, self.weight.shape)
+      self.flops = np.prod(in_features.shape[0:-1]) * np.prod(self.weight.shape)
       return einsum(in_features, self.weight, "... din, dout din -> ... dout")
+
+    def count_flops(self):
+      return {'Linear': self.flops}
 
 class Embedding(Module):
     def __init__(self, num_embeddings, embedding_dim, device=None, dtype=None):
@@ -71,6 +75,9 @@ class Embedding(Module):
     def forward(self, token_ids):
       return self.weight[token_ids]
 
+    def count_flops(self):
+      return {'Embedding': 0}
+
 class RMSNorm(Module):
     def __init__(self, d_model, eps=1e-5, device=None, dtype=None):
       super().__init__()
@@ -83,34 +90,15 @@ class RMSNorm(Module):
 
     def forward(self, x):
       assert x.shape[-1] == self.d_model
+      self.flops = np.prod(x.shape)*3
       RMS = torch.sqrt( self.eps + (1. / self.d_model) * torch.sum(torch.square(x), axis=-1, keepdims=True))
       return x * self.weight / RMS
 
+    def count_flops(self):
+      return {'RMSNorm': self.flops}
+
 def SiLU(x):
   return x * torch.sigmoid(x)
-
-'''
-class SwiGLU(Module):
-    def __init__(self, d_model, d_ff, device=None, dtype=None):
-      super().__init__()
-      self.d_model = d_model
-      self.d_ff = d_ff
-      self.w1 = Parameter(torch.nn.init.trunc_normal_(torch.empty(self.d_ff, self.d_model)))
-      self.w2 = Parameter(torch.nn.init.trunc_normal_(torch.empty(self.d_model, self.d_ff)))
-      self.w3 = Parameter(torch.nn.init.trunc_normal_(torch.empty(self.d_ff, self.d_model)))
-
-    def forward(self, x):
-      # print ()
-      # print (x.shape)
-      # print (self.w1.shape)
-      # print (self.w2.shape)
-      # FFN(x) = SwiGLU(x, W1 , W2 , W3 ) = W2 @ (SiLU(W1 @ x) * W3 @ x),
-      W1X = einsum(x, self.w1, "... d_model, d_ff d_model -> ... d_ff")
-      W3X = einsum(x, self.w3, "... d_model, d_ff d_model -> ... d_ff")
-      hidden = SiLU(W1X) * W3X
-      OUT = einsum(hidden, self.w2, "... d_ff, d_model d_ff -> ... d_model")
-      return OUT
-'''
 
 class SwiGLU(Module):
     def __init__(self, d_model, d_ff, device=None, dtype=None):
@@ -127,6 +115,13 @@ class SwiGLU(Module):
       hidden = SiLU(W1X) * W3X
       OUT = self.w2(hidden)
       return OUT
+
+    def count_flops(self):
+      flops = {}
+      for key, value in self.w1.count_flops().items(): flops['w1.' + key] = value
+      for key, value in self.w2.count_flops().items(): flops['w2.' + key] = value
+      for key, value in self.w3.count_flops().items(): flops['w3.' + key] = value
+      return flops
 
 class RotaryPositionalEmbedding(Module):
     def __init__(self, theta: float, d_k: int, max_seq_len: int, device=None):
@@ -174,6 +169,9 @@ class RotaryPositionalEmbedding(Module):
       shape = list(x.shape[0:-1]) + [1] + [x.shape[-1]]
       OUT = torch.sum(Z * x.reshape(shape), axis=-1)
       return OUT
+
+    def count_flops(self):
+      return {'RoPE': 0}
 
 def scaled_dot_product_attention(
     Q: Float[Tensor, " ... queries d_k"],
@@ -261,10 +259,23 @@ class MultiheadAttention(Module):
         # mask = torch.triu(mask)
 
         out = scaled_dot_product_attention(q, k, v, mask)
+        self.flops = {
+        'qk': np.prod(q.shape[0:-1]) * np.prod(k.shape),
+        'qkv': np.prod(q.shape[0:-1]) * np.prod(v.shape),
+        }
+
         out = out.transpose(2,1).reshape(batch, seq, self.d_model)
         out = self.output_proj(out)
 
         return out
+
+    def count_flops(self):
+      flops = self.flops
+      for key, value in self.q_proj.count_flops().items(): flops['q_proj.' + key] = value
+      for key, value in self.k_proj.count_flops().items(): flops['k_proj.' + key] = value
+      for key, value in self.v_proj.count_flops().items(): flops['v_proj.' + key] = value
+      for key, value in self.output_proj.count_flops().items(): flops['output_proj.' + key] = value
+      return flops
 
 class RoPEMultiheadAttention(Module):
     """RotaryPositionalEmbedding MultiheadAttention"""
@@ -316,10 +327,23 @@ class RoPEMultiheadAttention(Module):
         mask.tril_()
 
         out = scaled_dot_product_attention(q, k, v, mask)
+        self.flops = {
+        'qk': np.prod(q.shape[0:-1]) * np.prod(k.shape),
+        'qkv': np.prod(q.shape[0:-1]) * np.prod(v.shape),
+        }
+
         out = out.transpose(2,1).reshape(batch, seq, self.d_model)
         out = self.output_proj(out)
 
         return out
+
+    def count_flops(self):
+      flops = self.flops
+      for key, value in self.q_proj.count_flops().items(): flops['q_proj.' + key] = value
+      for key, value in self.k_proj.count_flops().items(): flops['k_proj.' + key] = value
+      for key, value in self.v_proj.count_flops().items(): flops['v_proj.' + key] = value
+      for key, value in self.output_proj.count_flops().items(): flops['output_proj.' + key] = value
+      return flops
 
 class TransformerDecoderLayer(Module):
     """TransformerDecoderLayer with RoPE"""
@@ -339,6 +363,16 @@ class TransformerDecoderLayer(Module):
         res1 = self.attn(self.ln1(x), pos_ids) + x
         res2 = self.ffn(self.ln2(res1)) + res1
         return res2
+
+    def count_flops(self):
+        self.attn.count_flops()
+        self.ffn.count_flops()
+
+    def count_flops(self):
+      flops = {}
+      for key, value in self.attn.count_flops().items(): flops['attn.' + key] = value
+      for key, value in self.ffn.count_flops().items(): flops['ffn.' + key] = value
+      return flops
 
 class TransformerDecoder(Module):
     def __init__(
@@ -373,6 +407,19 @@ class TransformerDecoder(Module):
         x = self.lm_head(x)
         # return torch.softmax(x, axis=-1)
         return x
+
+    def count_params(self):
+        total_params = sum(p.numel() for p in self.parameters())
+        return total_params
+
+    def count_flops(self):
+      flops = {}
+      for key, value in self.token_embeddings.count_flops().items(): flops['token_embeddings.' + key] = value
+      for i, layer in enumerate(self.layers):
+        for key, value in layer.count_flops().items(): flops[str(i) + '.' + key] = value
+      for key, value in self.ln_final.count_flops().items(): flops['ln_final.' + key] = value
+      for key, value in self.lm_head.count_flops().items(): flops['lm_head.' + key] = value
+      return flops
 
 
 
