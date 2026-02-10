@@ -118,6 +118,8 @@ TODO:
 2. figure out what token_positions is passed to rope
 3. fix our hacky code. better understand the shapes.
 4. i dont even understand some of the inputs and outputs of each layer. like [batch, heads, seq, dmodel] but how many flops?
+> done
+5. what is the deal with attention heads? how is it different than just having 1 big head?
 
 pytest tests/test_model.py::test_transformer_lm
 
@@ -149,8 +151,8 @@ operational internsity is so low.
 
 =====================
 
+pytest tests/test_nn_utils.py::test_cross_entropy
 
-
-
+=====================
 
 

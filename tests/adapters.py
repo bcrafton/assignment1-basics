@@ -13,6 +13,8 @@ from cs336_basics.train_bpe_tokenizer import *
 from cs336_basics.tokenizer import Tokenizer
 from cs336_basics import model
 
+from cs336_basics.nn_utils import cross_entropy
+
 def run_linear(
     d_in: int,
     d_out: int,
@@ -515,8 +517,8 @@ def run_cross_entropy(
     Returns:
         Float[Tensor, ""]: The average cross-entropy loss across examples.
     """
-    raise NotImplementedError
-
+    #raise NotImplementedError
+    return cross_entropy(inputs, targets)
 
 def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:
     """Given a set of parameters, clip their combined gradients to have l2 norm at most max_l2_norm.
