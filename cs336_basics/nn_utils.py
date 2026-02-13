@@ -49,4 +49,21 @@ def cross_entropy(inputs, targets):
   loss = torch.mean(log_probs)
   return loss
 
+# Tricky part here is that the grad can be "None" which was throwing us off.
+def gradient_clipping(parameters, max_l2_norm):
+    l2_norm = 0
+    for param in parameters:
+        grad = param.grad
+        if grad is not None:
+            l2_norm += torch.sum(grad ** 2)
+    l2_norm = l2_norm ** 0.5
+    for param in parameters:
+        grad = param.grad
+        if grad is not None:
+            if l2_norm > max_l2_norm:
+                grad *= max_l2_norm / (l2_norm + 1e-6)
+
+
+
+
 
