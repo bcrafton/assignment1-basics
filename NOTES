@@ -163,6 +163,8 @@ pytest tests/test_data.py::test_get_batch
 
 pytest tests/test_serialization.py::test_checkpointing
 
+pytest tests/
+
 =====================
 
 
