@@ -43,8 +43,10 @@ def cross_entropy(inputs, targets):
   # softmax(inputs) gives inf and nan when its scaled by 1000.
   # AI told us this: Alternative: LogSoftmax: For loss calculations, using log(softmax(x)) is more numerically stable than calculating log and softmax separately.
 
+  device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
   log_softmax = torch.nn.functional.log_softmax(inputs, dim=-1)
-  y = torch.nn.functional.one_hot(targets, num_classes=inputs.shape[-1])
+  y = torch.nn.functional.one_hot(targets, num_classes=inputs.shape[-1]).to(device)
   log_probs = torch.sum(y * -log_softmax, axis=-1)
   loss = torch.mean(log_probs)
   return loss

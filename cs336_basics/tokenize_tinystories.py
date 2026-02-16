@@ -13,11 +13,6 @@ from trainer import get_batch, load_checkpoint, save_checkpoint
 import numpy as np
 
 from transformers import AutoTokenizer
-import torch
-
-import time
-
-from transformers import PreTrainedTokenizerFast
 
 ################################
 
@@ -119,16 +114,12 @@ def load_dataset():
 class Trainer:
   def __init__(self):
     self.vocab_size = 50257
-    self.vocab_size = 3000
-    self.context_length = 64
+    self.context_length = 128
     self.d_model = 512
     self.num_layers = 8
-    self.num_heads = 8
+    self.num_heads = 12
     self.d_ff = 512
     self.rope_theta = 10000
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # print (device)
 
     m = model.TransformerDecoder(
     vocab_size=self.vocab_size,
@@ -139,12 +130,9 @@ class Trainer:
     d_ff=self.d_ff,
     rope_theta=self.rope_theta
     )
-    
-    optimizer = AdamW(m.parameters(), lr=1e-4)
 
-    # self.tokenizer = get_tokenizer_from_vocab_merges_path('tokenizer/gpt2_vocab.json', 'tokenizer/gpt2_merges.txt', 'special.txt')
-    # self.dataset = None
-
+    self.tokenizer = get_tokenizer_from_vocab_merges_path('tokenizer/gpt2_vocab.json', 'tokenizer/gpt2_merges.txt', 'special.txt')
+    self.dataset = None
     # so we need to figure out how to load the dataset and stream it.
     # wasnt one of the tests running the whole tinystories thing? do they load the whole dataset there?
     # i think we commented that one out. otherwise I guess we should read the notes ...
@@ -167,61 +155,119 @@ class Trainer:
     # I want to load the trained bpe from gpt2 instead of trying to create our own.
     # Currently we get OOM error when we run: train_bpe_tokenizer_parallel.py
 
-    # we just used pytorch's tokenizer and its way faster.
+    
 
-    # tokenizer = AutoTokenizer.from_pretrained("gpt2")
-    tokenizer = PreTrainedTokenizerFast(tokenizer_file="../bpe3000.json")
+# trainer = Trainer()
 
-    #fr = np.memmap('TinyStoriesV2-GPT4-train.dat', dtype=np.uint16, mode='r+')
-    fr = np.memmap('TinyStoriesV2-GPT4-train-bpe3000.dat', dtype=np.uint16, mode='r+')
+################################
 
-    for _ in range(10000):
-      t1 = time.time()
-      x, y = get_batch(dataset=fr, batch_size=256, context_length=self.context_length, device=device)
-      t2 = time.time()
+'''
+import numpy as np
+import os
 
-      x = x.int()
-      y = y.long()
-      p = m(x)
+filename = 'large_data.dat'
+dtype = 'float32'
+# 1. Define a maximum possible size (e.g., 1GB)
+# If you don't know the exact size, pick a large enough upper bound.
+max_elements = 10**8 
 
-      # print (x)
-      # print (y)
+# 2. Create the memmap with w+ mode
+fp = np.memmap(filename, dtype=dtype, mode='w+', shape=(max_elements,))
 
-      # print (p.shape)
-      # print (y.shape)
-      loss = cross_entropy(p, y)
-      print (loss)
+# 3. Write data
+fp[0:1000] = np.arange(1000)
 
-      # I guess now we have to get the gradients and update our model?
-      # look at train.py from cs336-assignment1-basics
+# 4. If you need to shrink it to the actual size used
+actual_size = 1000
+final_memmap = np.memmap(filename, dtype=dtype, mode='r+', shape=(actual_size,))
+# Note: You cannot directly resize a memmap to make the file smaller easily. 
+# It is better to map with max size, then ftruncate or close and 
+# use a fresh mapping for reading [4.4, 4.11].
 
-      loss = loss.backward()
-      # gradient_clipping(model.parameters(), 1.0)
-      optimizer.step()
-      t3 = time.time()
+del fp # Close the file mapping
+'''
 
-      # y = y.detach().numpy()
-      # decoded_text = tokenizer.decode(y[0], skip_special_tokens=True)
-      # print (decoded_text)
+################################
+'''
+tokenizer = get_tokenizer_from_vocab_merges_path('tokenizer/gpt2_vocab.json', 'tokenizer/gpt2_merges.txt', 'tokenizer/special.txt')
 
-      p = p.cpu().detach().numpy()
-      # print (p.shape)
-      p = np.argmax(p, axis=-1)
-      # print (p.shape)
-      # decoded_text = tokenizer.decode(p[0], skip_special_tokens=True)
+fr = open('/home/brian/Desktop/assignment1-basics/data/TinyStoriesV2-GPT4-train.txt', 'r')
+fw = np.memmap('TinyStoriesV2-GPT4-train.dat', dtype=np.uint16, mode='w+', shape=10**8)
 
-      print (t2 - t1, t3 - t2)
-      print (tokenizer.decode(y[0], skip_special_tokens=True))
-      print (tokenizer.decode(p[0], skip_special_tokens=True))
-      print ()
+ptr = 0
+count = 0
+while True:
+  text = fr.read(1024*1024)
+  count += 1
+  print (count*1024*1024 / 2227753162 * 100)
 
-      # flops = print (m.count_flops())
-      # total_flops = sum( value for value in m.count_flops().values() )
-      # print (total_flops)
-      # have to consider that we are also running backprop and updating the weights, if it was just inference it would be higher.
-      # RTX5070 --> 30 TFLOPS
+  if text:
+    tokens = tokenizer.encode(text)
+    fw[ptr:ptr+len(tokens)] = tokens
+    print (ptr, ptr+len(tokens))
+    fw.flush()
+    ptr += len(tokens)
+  else:
+    break
 
-trainer = Trainer()
+fr.close()
+del fw
+'''
+################################
+'''
+from transformers import AutoTokenizer
+
+# Load the pretrained GPT-2 tokenizer
+tokenizer = AutoTokenizer.from_pretrained("gpt2")
+
+# Example text
+text = "Hello world, this is a demonstration of the GPT-2 tokenizer."
+
+# Encode the text into token IDs
+inputs = tokenizer(text, return_tensors="pt")
+print("Input IDs:", inputs["input_ids"])
+
+# Decode the token IDs back to text
+decoded_text = tokenizer.decode(inputs["input_ids"][0], skip_special_tokens=True)
+print("Decoded Text:", decoded_text)
+'''
+################################
+
+tokenizer = AutoTokenizer.from_pretrained("gpt2")
+
+fr = open('/home/brian/Desktop/assignment1-basics/data/TinyStoriesV2-GPT4-train.txt', 'r')
+fw = np.memmap('tmp.dat', dtype=np.uint16, mode='w+', shape=10**9)
+
+ptr = 0
+count = 0
+while True:
+  text = fr.read(64*1024*1024)
+  count += 1
+  print (count*64*1024*1024 / 2227753162 * 100)
+
+  if text:
+    tokens = tokenizer(text, return_tensors="np")['input_ids'].reshape(-1)
+    fw[ptr:ptr+len(tokens)] = tokens
+    fw.flush()
+    ptr += len(tokens)
+    # print (ptr, ptr+len(tokens))
+    # print (fw[ptr])
+  else:
+    break
+
+fr.close()
+del fw
+
+################################
+
+fr = np.memmap('tmp.dat', dtype=np.uint16, mode='r+')
+fw = np.memmap('TinyStoriesV2-GPT4-train.dat', dtype=np.uint16, mode='w+', shape=ptr)
+
+for i in range(ptr):
+  fw[i] = fr[i]
+
+del fr
+del fw
 
 ################################
 

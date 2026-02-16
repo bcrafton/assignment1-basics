@@ -167,5 +167,30 @@ pytest tests/
 
 =====================
 
+two concerns:
+1) 
+arnt we supposed to look for chunks/parts before tokenizing? rather than streaming in arbitrary text.
+GPT2_PRETOKENIZER_PATTERN, "find_chunk_boundaries", parts = re.split(special_pattern, text), etc
+2)
+right now our dataset has tons of zeros in it because we dont re-sie the array.
+
+=====================
+
+we also found that loading the data took 0.02 seconds 
+and running the model took 17 seconds
+after we (1) swapped out the RoPE implementation (2) moved the data to gpu it went down to 2 seconds
+still feel like it should be faster though ...
+we computed the tflops.
+our gpu should be able to do 30 flops/s
+we are getting about 6 ... which isnt too bad I think because we are under approximating.
+
+=====================
+
+I think we need to revisit the tokenizer and make sure that we did it right.
+We trained a bpe3000 tokenizer.
+But we did leave UNK in there?
+
+
+
 
 

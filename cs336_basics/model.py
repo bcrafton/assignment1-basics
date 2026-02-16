@@ -49,7 +49,8 @@ class Linear(Module):
       self.out_features = out_features
       self.weight = torch.empty(in_features, out_features)
       std = 1 / sqrt(self.in_features)
-      self.weight = torch.nn.init.trunc_normal_(self.weight, mean=0.0, std=std, a=-3*std, b=3*std)
+      device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+      self.weight = torch.nn.init.trunc_normal_(self.weight, mean=0.0, std=std, a=-3*std, b=3*std).to(device)
       self.weight = Parameter(self.weight)
 
     def forward(self, in_features):
@@ -69,7 +70,8 @@ class Embedding(Module):
       self.embedding_dim = embedding_dim
       self.weight = torch.empty(num_embeddings, embedding_dim)
       std = 1 / sqrt(self.num_embeddings)
-      self.weight = torch.nn.init.trunc_normal_(self.weight, mean=0.0, std=std, a=-3*std, b=3*std)
+      device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+      self.weight = torch.nn.init.trunc_normal_(self.weight, mean=0.0, std=std, a=-3*std, b=3*std).to(device)
       self.weight = Parameter(self.weight)
 
     def forward(self, token_ids):
@@ -85,7 +87,8 @@ class RMSNorm(Module):
       self.eps = eps
       self.weight = torch.empty(d_model)
       std = 1 / sqrt(self.d_model)
-      self.weight = torch.nn.init.trunc_normal_(self.weight, mean=0.0, std=std, a=-3*std, b=3*std)
+      device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+      self.weight = torch.nn.init.trunc_normal_(self.weight, mean=0.0, std=std, a=-3*std, b=3*std).to(device)
       self.weight = Parameter(self.weight)
 
     def forward(self, x):
@@ -169,6 +172,67 @@ class RotaryPositionalEmbedding(Module):
       shape = list(x.shape[0:-1]) + [1] + [x.shape[-1]]
       OUT = torch.sum(Z * x.reshape(shape), axis=-1)
       return OUT
+
+    def count_flops(self):
+      return {'RoPE': 0}
+
+class RotaryPositionalEmbedding(Module):
+    """RotaryPositionalEmbedding"""
+
+    def __init__(
+        self,
+        d_k: int,
+        theta: float,
+        max_seq_len: int,
+    ):
+        """
+        Args:
+            d_k (int): Embedding dimension size for the query or key tensor.
+            theta (float): RoPE parameter.
+            max_seq_len (int): Maximum sequence length to pre-cache.
+        """
+        super().__init__()
+        self.d_k = d_k
+        self.theta = theta
+        self.max_seq_len = max_seq_len
+        power = -2 * torch.arange(d_k // 2, dtype=torch.float32) / d_k
+        inv_freq = theta ** power.unsqueeze(0)
+        positions = torch.arange(max_seq_len, dtype=torch.float32).unsqueeze(1)
+        angles = positions * inv_freq
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        # self.register_buffer("sin", torch.sin(angles), persistent=False)
+        # self.register_buffer("cos", torch.cos(angles), persistent=False)
+        # self.register_buffer("sign", (-1) ** torch.arange(1, d_k + 1), persistent=False)
+        # self.register_buffer("index", torch.arange(d_k).reshape(-1, 2).flip(1).flatten(), persistent=False)
+
+        self.sin = torch.sin(angles)
+        self.cos = torch.cos(angles)
+        self.sign = (-1) ** torch.arange(1, d_k + 1)
+        self.index = torch.arange(d_k).reshape(-1, 2).flip(1).flatten()
+
+        self.sin = self.sin.to(device)
+        self.cos = self.cos.to(device)
+        self.sign = self.sign.to(device)
+        self.index = self.index.to(device)
+
+    def forward(
+        self,
+        x: Float[Tensor, " ... sequence_length d_k"],
+        token_positions: Int[Tensor, " ... sequence_length"],
+    ) -> Float[Tensor, " ... sequence_length d_k"]:
+        """
+        Args:
+            x (Float[Tensor, "... sequence_length d_k"]): Input tensor to run RoPE on.
+            token_positions (Int[Tensor, "... sequence_length"]): Tensor of shape (batch_size, sequence_length) with the token positions
+        Returns:
+            Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input.
+        """
+        cos = self.cos[token_positions].repeat_interleave(2, -1)
+        sin = self.sin[token_positions].repeat_interleave(2, -1)
+        sin = sin * self.sign
+        return cos * x + sin * x[..., self.index]
 
     def count_flops(self):
       return {'RoPE': 0}
