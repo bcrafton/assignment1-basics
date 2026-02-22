@@ -3,6 +3,9 @@ from jaxtyping import Float, Int
 import torch
 from torch import Tensor
 from torch.nn import Module, Parameter, ModuleList
+import torch
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
 from numpy import sqrt
 from einops import einsum, rearrange
 import numpy as np

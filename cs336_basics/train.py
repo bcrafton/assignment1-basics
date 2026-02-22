@@ -14,6 +14,8 @@ import numpy as np
 
 from transformers import AutoTokenizer
 import torch
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
 
 import time
 
@@ -216,8 +218,8 @@ class Trainer:
       print ()
 
       # flops = print (m.count_flops())
-      # total_flops = sum( value for value in m.count_flops().values() )
-      # print (total_flops)
+      total_flops = sum( value for value in m.count_flops().values() )
+      print (total_flops)
       # have to consider that we are also running backprop and updating the weights, if it was just inference it would be higher.
       # RTX5070 --> 30 TFLOPS
 
